@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="taskApp">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Advanced Task Management App</title>
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+  <style>
+    /* Global Styles */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to right, #e0f7fa, #f1f8e9);
+      padding: 30px;
+      margin: 0;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: #ffffff;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+      animation: fadeIn 1s ease-in-out;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #2e7d32;
+    }
+
+    /* Form Inputs */
+    input, select, button {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+      transition: all 0.3s ease;
+    }
+
+    input:focus, select:focus {
+      border-color: #66bb6a;
+      outline: none;
+      box-shadow: 0 0 5px rgba(102, 187, 106, 0.4);
+    }
+
+    button {
+      background-color: #43a047;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #2e7d32;
+    }
+
+    /* Task Styles */
+    .task {
+      background: #fafafa;
+      padding: 15px;
+      margin-top: 15px;
+      border-left: 5px solid #2196f3;
+      border-radius: 10px;
+      position: relative;
+      transition: transform 0.3s, background-color 0.3s;
+      animation: slideUp 0.4s ease;
+    }
+
+    .task:hover {
+      transform: scale(1.02);
+      background-color: #f1f8e9;
+    }
+
+    .task.completed {
+      background-color: #c8e6c9;
+      text-decoration: line-through;
+      border-left-color: #388e3c;
+    }
+
+    .task-buttons {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+    }
+
+    .task-buttons button {
+      background: none;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      margin-left: 8px;
+      transition: transform 0.2s;
+    }
+
+    .task-buttons button:hover {
+      transform: scale(1.3);
+    }
+
+    /* Filters */
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin: 20px 0;
+    }
+
+    .filters select, .filters input {
+      flex: 1;
+      min-width: 180px;
+    }
+
+    /* Priority Colors */
+    .task[priority='High'] { border-left-color: #e53935; }
+    .task[priority='Medium'] { border-left-color: #fb8c00; }
+    .task[priority='Low'] { border-left-color: #43a047; }
+
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body ng-controller="TaskController">
+  <div class="container">
+    <h1>Task Management App (AngularJS)</h1>
+
+    <form ng-submit="addTask()">
+      <input type="text" ng-model="task.title" placeholder="Task Title" required>
+      <input type="text" ng-model="task.description" placeholder="Task Description" required>
+      <input type="date" ng-model="task.dueDate" required>
+      <select ng-model="task.priority" required>
+        <option value="" disabled selected>Select Priority</option>
+        <option>Low</option>
+        <option>Medium</option>
+        <option>High</option>
+      </select>
+      <select ng-model="task.category" required>
+        <option value="" disabled selected>Select Category</option>
+        <option>Personal</option>
+        <option>Work</option>
+        <option>Other</option>
+      </select>
+      <button type="submit">{{ editMode ? 'Update Task' : 'Add Task' }}</button>
+    </form>
+
+    <div class="filters">
+      <select ng-model="filterPriority">
+        <option value="">All Priorities</option>
+        <option>Low</option>
+        <option>Medium</option>
+        <option>High</option>
+      </select>
+      <select ng-model="filterCategory">
+        <option value="">All Categories</option>
+        <option>Personal</option>
+        <option>Work</option>
+        <option>Other</option>
+      </select>
+      <input type="text" ng-model="searchText" placeholder="Search tasks...">
+    </div>
+
+    <div class="task"
+         ng-repeat="t in tasks | filter:searchText | filter:{priority: filterPriority, category: filterCategory}"
+         ng-class="{completed: t.completed}"
+         priority="{{t.priority}}">
+      <strong>{{t.title}}</strong><br>
+      {{t.description}}<br>
+      <small>Due: {{t.dueDate}} | Priority: {{t.priority}} | Category: {{t.category}}</small>
+
+      <div class="task-buttons">
+        <button title="Mark Complete" ng-click="toggleComplete(t)">✔</button>
+        <button title="Edit Task" ng-click="editTask(t)">✏️</button>
+        <button title="Delete Task" ng-click="deleteTask(t)">🗑️</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    angular.module('taskApp', []).controller('TaskController', function($scope) {
+      $scope.tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+      $scope.task = {};
+      $scope.editMode = false;
+
+      $scope.saveToStorage = function() {
+        localStorage.setItem('tasks', JSON.stringify($scope.tasks));
+      };
+
+      $scope.addTask = function() {
+        if ($scope.editMode) {
+          Object.assign($scope.editingTask, $scope.task);
+          $scope.editMode = false;
+        } else {
+          $scope.task.completed = false;
+          $scope.tasks.push(angular.copy($scope.task));
+        }
+        $scope.task = {};
+        $scope.saveToStorage();
+      };
+
+      $scope.toggleComplete = function(task) {
+        task.completed = !task.completed;
+        $scope.saveToStorage();
+      };
+
+      $scope.editTask = function(task) {
+        $scope.task = angular.copy(task);
+        $scope.editingTask = task;
+        $scope.editMode = true;
+      };
+
+      $scope.deleteTask = function(task) {
+        if (confirm("Are you sure you want to delete this task?")) {
+          const index = $scope.tasks.indexOf(task);
+          $scope.tasks.splice(index, 1);
+          $scope.saveToStorage();
+        }
+      };
+    });
+  </script>
+</body>
+</html>
